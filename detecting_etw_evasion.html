@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ETW Defense Evasion — Threat Intelligence Report</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:wght@400;500;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-card: #16161f;
+    --bg-code: #1a1a26;
+    --border: #2a2a3a;
+    --border-accent: #3d3d55;
+    --text-primary: #e8e8f0;
+    --text-secondary: #9898b0;
+    --text-muted: #6a6a82;
+    --accent-red: #ff4d6a;
+    --accent-red-dim: #ff4d6a22;
+    --accent-orange: #ff8c42;
+    --accent-orange-dim: #ff8c4218;
+    --accent-blue: #4d9fff;
+    --accent-blue-dim: #4d9fff15;
+    --accent-green: #36d986;
+    --accent-green-dim: #36d98618;
+    --accent-purple: #a78bfa;
+    --accent-purple-dim: #a78bfa18;
+    --accent-yellow: #fbbf24;
+    --accent-yellow-dim: #fbbf2418;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Grain overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  /* === HERO === */
+  .hero {
+    padding: 6rem 0 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -120px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, var(--accent-red-dim) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.8rem;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .badge-red { background: var(--accent-red-dim); color: var(--accent-red); border: 1px solid #ff4d6a33; }
+  .badge-orange { background: var(--accent-orange-dim); color: var(--accent-orange); border: 1px solid #ff8c4233; }
+  .badge-blue { background: var(--accent-blue-dim); color: var(--accent-blue); border: 1px solid #4d9fff33; }
+  .badge-purple { background: var(--accent-purple-dim); color: var(--accent-purple); border: 1px solid #a78bfa33; }
+  .badge-green { background: var(--accent-green-dim); color: var(--accent-green); border: 1px solid #36d98633; }
+
+  .hero h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.4rem, 5vw, 3.6rem);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.2rem;
+    background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-red) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subtitle {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    max-width: 640px;
+    line-height: 1.8;
+  }
+
+  .hero-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 1.5rem;
+  }
+
+  /* === DIVIDER === */
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--border) 30%, var(--border) 70%, transparent 100%);
+    margin: 0;
+  }
+
+  /* === SECTIONS === */
+  section {
+    padding: 3.5rem 0;
+  }
+
+  .section-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--accent-red);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.6rem;
+    display: block;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 2rem 0 0.8rem;
+    color: var(--text-primary);
+  }
+
+  p {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+  }
+
+  /* === MITRE CARD === */
+  .mitre-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 2rem;
+    margin: 2rem 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .mitre-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent-red), var(--accent-orange));
+  }
+
+  .mitre-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin-top: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    .mitre-grid { grid-template-columns: 1fr; }
+  }
+
+  .mitre-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .mitre-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .mitre-value {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 500;
+  }
+
+  /* === ATTACK FLOW === */
+  .attack-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 2rem 0;
+  }
+
+  .flow-step {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+    position: relative;
+  }
+
+  .flow-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 40px;
+  }
+
+  .flow-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    box-shadow: 0 0 12px var(--accent-red-dim);
+    z-index: 1;
+    flex-shrink: 0;
+  }
+
+  .flow-line {
+    width: 2px;
+    flex-grow: 1;
+    background: var(--border);
+    min-height: 30px;
+  }
+
+  .flow-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1rem;
+    flex: 1;
+    transition: border-color 0.3s;
+  }
+
+  .flow-content:hover {
+    border-color: var(--border-accent);
+  }
+
+  .flow-content h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 0.4rem;
+    color: var(--accent-orange);
+  }
+
+  .flow-content p {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+    color: var(--text-secondary);
+  }
+
+  /* === CODE BLOCKS === */
+  .code-block {
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 1.2rem;
+    background: #12121c;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .code-lang {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .code-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--accent-blue);
+    letter-spacing: 0.05em;
+  }
+
+  pre {
+    padding: 1.2rem;
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+  }
+
+  pre code { font-family: inherit; }
+
+  .kw { color: var(--accent-purple); }
+  .fn { color: var(--accent-blue); }
+  .str { color: var(--accent-green); }
+  .cm { color: var(--text-muted); font-style: italic; }
+  .op { color: var(--accent-orange); }
+  .num { color: var(--accent-yellow); }
+  .hex { color: var(--accent-red); }
+
+  /* === TECHNIQUE CARDS === */
+  .technique-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .technique-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s, transform 0.2s;
+  }
+
+  .technique-card:hover {
+    border-color: var(--border-accent);
+    transform: translateY(-1px);
+  }
+
+  .technique-card::after {
+    content: attr(data-number);
+    position: absolute;
+    top: 0.8rem;
+    right: 1rem;
+    font-family: 'Playfair Display', serif;
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: #ffffff06;
+  }
+
+  .technique-card h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  .technique-card p {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+    line-height: 1.6;
+  }
+
+  .technique-card .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent-red);
+    background: var(--accent-red-dim);
+    padding: 0.15rem 0.45rem;
+    border-radius: 2px;
+    display: inline;
+  }
+
+  /* === ALERT BOX === */
+  .alert {
+    border-radius: 6px;
+    padding: 1.2rem 1.5rem;
+    margin: 1.5rem 0;
+    display: flex;
+    gap: 0.8rem;
+    align-items: flex-start;
+    font-size: 0.88rem;
+  }
+
+  .alert-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    line-height: 1.5;
+  }
+
+  .alert-danger {
+    background: var(--accent-red-dim);
+    border: 1px solid #ff4d6a33;
+    color: #ffb0be;
+  }
+
+  .alert-info {
+    background: var(--accent-blue-dim);
+    border: 1px solid #4d9fff33;
+    color: #a0c8ff;
+  }
+
+  .alert-warning {
+    background: var(--accent-yellow-dim);
+    border: 1px solid #fbbf2433;
+    color: #ffe0a0;
+  }
+
+  .alert-success {
+    background: var(--accent-green-dim);
+    border: 1px solid #36d98633;
+    color: #a0f0c8;
+  }
+
+  /* === TABLE === */
+  .table-wrap {
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+
+  thead {
+    background: #12121c;
+  }
+
+  th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0.8rem 1.2rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 0.8rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: #ffffff03; }
+
+  td code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--bg-code);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent-blue);
+  }
+
+  /* === SEVERITY METER === */
+  .severity-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin: 1.5rem 0;
+    padding: 1rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  .severity-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .severity-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .severity-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-orange), var(--accent-red));
+  }
+
+  .severity-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent-red);
+  }
+
+  /* === FOOTER === */
+  footer {
+    padding: 3rem 0;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  footer p {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  /* === INLINE CODE === */
+  p code, li code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    background: var(--bg-code);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    color: var(--accent-blue);
+    border: 1px solid var(--border);
+  }
+
+  /* === LISTS === */
+  ul, ol {
+    padding-left: 1.2rem;
+    margin: 0.8rem 0 1.2rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+  }
+
+  li::marker {
+    color: var(--accent-red);
+  }
+
+  /* === DETECTION SECTION HIGHLIGHT === */
+  .detection-section {
+    border-left: 3px solid var(--accent-green);
+    padding-left: 1.5rem;
+    margin: 2rem 0;
+  }
+
+  .detection-section h3 {
+    color: var(--accent-green);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- HERO -->
+  <header class="hero">
+    <div class="hero-meta">
+      <span class="badge badge-red">⬥ Critical</span>
+      <span class="badge badge-orange">Defense Evasion</span>
+      <span class="badge badge-purple">T1562.006</span>
+      <span class="badge badge-blue">MDE Detection</span>
+    </div>
+    <h1>Disabling Event Tracing for Windows (ETW)</h1>
+    <p class="hero-subtitle">
+      A comprehensive threat intelligence report covering how adversaries tamper with ETW to blind endpoint detection, the underlying techniques at the API and registry level, and actionable KQL detection queries for Microsoft Defender for Endpoint.
+    </p>
+    <p class="hero-date">Published February 2026 &nbsp;·&nbsp; Classification: TLP:CLEAR</p>
+  </header>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 1: MITRE MAPPING -->
+  <section>
+    <span class="section-number">01 — MITRE ATT&CK Mapping</span>
+    <h2>Technique Classification</h2>
+
+    <div class="mitre-card">
+      <div class="mitre-grid">
+        <div class="mitre-field">
+          <span class="mitre-label">Tactic</span>
+          <span class="mitre-value">Defense Evasion (TA0005)</span>
+        </div>
+        <div class="mitre-field">
+          <span class="mitre-label">Technique</span>
+          <span class="mitre-value">Impair Defenses (T1562)</span>
+        </div>
+        <div class="mitre-field">
+          <span class="mitre-label">Sub-Technique</span>
+          <span class="mitre-value">Indicator Blocking (T1562.006)</span>
+        </div>
+        <div class="mitre-field">
+          <span class="mitre-label">Platforms</span>
+          <span class="mitre-value">Windows</span>
+        </div>
+        <div class="mitre-field">
+          <span class="mitre-label">Permissions Required</span>
+          <span class="mitre-value">User / Administrator</span>
+        </div>
+        <div class="mitre-field">
+          <span class="mitre-label">Data Sources</span>
+          <span class="mitre-value">Process, Registry, API Monitoring, Sensor Health</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="severity-bar">
+      <span class="severity-label">Threat Severity</span>
+      <div class="severity-track">
+        <div class="severity-fill" style="width: 85%"></div>
+      </div>
+      <span class="severity-value">HIGH</span>
+    </div>
+
+    <p>
+      ETW tampering falls under the <strong>Impair Defenses</strong> technique (T1562), specifically the <strong>Indicator Blocking</strong> sub-technique (T1562.006). Adversaries use this to prevent security sensors — including EDR, AV, and SIEM — from collecting telemetry that would reveal malicious activity. Because many security products (including Microsoft Defender for Endpoint) rely on ETW for visibility into .NET assembly loading, process behaviour, and threat intelligence, disabling it effectively blinds the defender.
+    </p>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 2: WHAT IS ETW -->
+  <section>
+    <span class="section-number">02 — Background</span>
+    <h2>What is Event Tracing for Windows?</h2>
+
+    <p>
+      Event Tracing for Windows (ETW) is a high-performance, kernel-level tracing facility built into Windows. It provides a standardised mechanism for applications and the OS to log events that can be consumed in real-time or from log files. The architecture consists of three core components:
+    </p>
+
+    <div class="technique-grid">
+      <div class="technique-card" data-number="P">
+        <h4>Providers</h4>
+        <p>Applications or OS components that generate events. Examples include the <code>Microsoft-Windows-Threat-Intelligence</code> provider and the .NET CLR runtime provider. Hundreds of providers are registered on a typical Windows system.</p>
+      </div>
+      <div class="technique-card" data-number="S">
+        <h4>Sessions (Controllers)</h4>
+        <p>Manage trace sessions, enabling or disabling providers and buffering events. Autologger sessions start at boot time and are configured via registry keys under <code>HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger</code>.</p>
+      </div>
+      <div class="technique-card" data-number="C">
+        <h4>Consumers</h4>
+        <p>Receive and process events from sessions. EDR products act as consumers, subscribing to providers like the Threat Intelligence provider to gain telemetry about process hollowing, code injection, and other suspicious API calls.</p>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">ℹ</span>
+      <div>
+        <strong>Key insight:</strong> User-mode ETW events (including those from <code>ntdll!EtwEventWrite</code>) are emitted from within the process itself. This means a process with malicious code can tamper with its own ETW reporting before events ever reach a consumer — a fundamental architectural weakness.
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 3: HOW IT WORKS -->
+  <section>
+    <span class="section-number">03 — Attack Techniques</span>
+    <h2>How ETW Evasion Works</h2>
+
+    <p>
+      Adversaries use multiple methods to disable, redirect, or corrupt ETW telemetry. The techniques range from simple registry modifications to sophisticated in-memory patching of OS functions.
+    </p>
+
+    <h3>Technique 1 — Patching <code>ntdll!EtwEventWrite</code></h3>
+    <p>
+      The most widely observed method involves patching the <code>EtwEventWrite</code> function in <code>ntdll.dll</code> so that it returns immediately without emitting any event. The attacker resolves the function's address using <code>GetProcAddress</code>, changes the memory protection with <code>VirtualProtect</code>, and overwrites the first bytes with a return instruction.
+    </p>
+
+    <div class="attack-flow">
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4>Step 1 — Resolve Function Address</h4>
+          <p>Load <code>ntdll.dll</code> and call <code>GetProcAddress</code> to obtain the virtual address of <code>EtwEventWrite</code> or <code>NtTraceEvent</code>.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4>Step 2 — Change Memory Protection</h4>
+          <p>Call <code>VirtualProtect</code> to change the page protection from <code>PAGE_EXECUTE_READ</code> (0x20) to <code>PAGE_EXECUTE_READWRITE</code> (0x40), making the memory writable.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4>Step 3 — Write Patch Bytes</h4>
+          <p>Overwrite the function prologue. On x64: <code>0x48 0x33 0xC0 0xC3</code> (xor rax, rax; ret) — or simply <code>0xC3</code> (ret). On x86: <code>0xC2 0x14 0x00</code> (ret 0x14).</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot"></div></div>
+        <div class="flow-content">
+          <h4>Step 4 — Restore Protection</h4>
+          <p>Optionally restore the original memory protection to reduce forensic artifacts. The function now silently returns without logging any events.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">Pseudocode</span>
+        <span class="code-label">EtwEventWrite Patch (x64)</span>
+      </div>
+      <pre><code><span class="cm">// 1. Resolve EtwEventWrite address</span>
+addr <span class="op">=</span> <span class="fn">GetProcAddress</span>(<span class="fn">GetModuleHandle</span>(<span class="str">"ntdll.dll"</span>), <span class="str">"EtwEventWrite"</span>)
+
+<span class="cm">// 2. Make memory writable</span>
+<span class="fn">VirtualProtect</span>(addr, <span class="num">4</span>, <span class="hex">PAGE_EXECUTE_READWRITE</span>, <span class="op">&amp;</span>oldProtect)
+
+<span class="cm">// 3. Overwrite with: xor rax,rax; ret</span>
+<span class="fn">memcpy</span>(addr, <span class="hex">"\x48\x33\xc0\xc3"</span>, <span class="num">4</span>)
+
+<span class="cm">// 4. Restore original protection</span>
+<span class="fn">VirtualProtect</span>(addr, <span class="num">4</span>, oldProtect, <span class="op">&amp;</span>tmp)</code></pre>
+    </div>
+
+    <h3>Technique 2 — Patching <code>ntdll!NtTraceEvent</code></h3>
+    <p>
+      A more advanced variant targets <code>NtTraceEvent</code>, the lower-level syscall stub that both <code>EtwEventWrite</code> and <code>EtwEventWriteFull</code> ultimately call. Patching at this level is more effective because it intercepts all user-mode ETW event paths through a single choke point, but it is also more likely to be monitored by modern EDRs.
+    </p>
+
+    <h3>Technique 3 — Registry-Based ETW Disruption</h3>
+    <p>
+      Adversaries can tamper with ETW configuration through the Windows Registry without any code injection:
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Registry Path / Command</th>
+            <th>Effect</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Disable .NET ETW</td>
+            <td><code>COMPlus_ETWEnabled = 0</code> in <code>HKCU\Environment</code> or <code>HKLM\...\Session Manager\Environment</code></td>
+            <td>Disables all .NET CLR ETW providers, hiding assembly loads</td>
+          </tr>
+          <tr>
+            <td>Modify Autologger</td>
+            <td><code>HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger\{session}</code></td>
+            <td>Disabling or reconfiguring autologger sessions stops providers from starting at boot</td>
+          </tr>
+          <tr>
+            <td>Set-EtwTraceProvider</td>
+            <td><code>Set-EtwTraceProvider -Guid {guid} -AutologgerName "EventLog-Security" -Level 0</code></td>
+            <td>Sets a provider's logging level to zero, suppressing events</td>
+          </tr>
+          <tr>
+            <td>Redirect Event Logs</td>
+            <td>Modify <code>File</code> value in <code>HKLM\...\Services\EventLog\Security</code></td>
+            <td>Redirects security events to a different .evtx file, immediate effect</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Technique 4 — Provider Removal / NOP Patching of <code>EtwpEventWriteFull</code></h3>
+    <p>
+      Instead of patching the top-level API, some adversaries locate the internal call to <code>EtwpEventWriteFull</code> within <code>EtwEventWrite</code> and replace the 5-byte <code>CALL</code> instruction with NOPs (<code>0x90</code>). This is subtler because the function entry point remains intact, potentially evading integrity checks that only inspect the first few bytes.
+    </p>
+
+    <h3>Technique 5 — Remote Process ETW Patching</h3>
+    <p>
+      Because <code>ntdll.dll</code> is loaded at the same base address across all processes, an attacker can patch <code>EtwEventWrite</code> in a <strong>remote process</strong> by calling <code>NtOpenProcess</code> to obtain a handle, then using <code>NtProtectVirtualMemory</code> and <code>NtWriteVirtualMemory</code> targeting the same address. This can be used to blind a specific EDR or security process.
+    </p>
+
+    <div class="alert alert-danger">
+      <span class="alert-icon">⚠</span>
+      <div>
+        <strong>Real-world usage:</strong> The Remcos RAT, LockBit Black ransomware, Slingshot APT, and numerous red team frameworks (Cobalt Strike BOFs, Donut, execute-assembly loaders) have been observed using ETW patching techniques in the wild.
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 4: WHY IT MATTERS -->
+  <section>
+    <span class="section-number">04 — Impact Analysis</span>
+    <h2>Why This Matters to Defenders</h2>
+
+    <p>
+      When ETW is disabled within a process, the following telemetry sources are lost or degraded:
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Telemetry Source</th>
+            <th>Impact When ETW Is Disabled</th>
+            <th>Affected Detections</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>.NET Assembly Loading</td>
+            <td>No visibility into which assemblies are loaded from memory (e.g., execute-assembly)</td>
+            <td>Cobalt Strike, SharpHound, Rubeus, Seatbelt</td>
+          </tr>
+          <tr>
+            <td>Threat Intelligence Provider</td>
+            <td>Loss of kernel-reported signals for process injection, APC injection, code integrity</td>
+            <td>Process hollowing, DLL injection, shellcode loading</td>
+          </tr>
+          <tr>
+            <td>PowerShell / Script Block Logging</td>
+            <td>Script execution events suppressed before they reach the consumer</td>
+            <td>Obfuscated PowerShell, cradles, AMSI bypass chains</td>
+          </tr>
+          <tr>
+            <td>AMSI Integration</td>
+            <td>While AMSI is separate, ETW disruption often accompanies AMSI patching as a combined evasion</td>
+            <td>Script-based malware, fileless attacks</td>
+          </tr>
+          <tr>
+            <td>Security Auditing</td>
+            <td>Redirected or suppressed event logs hide lateral movement and persistence</td>
+            <td>Logon events, privilege use, object access</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 5: DETECTION -->
+  <section>
+    <span class="section-number">05 — Detection Engineering</span>
+    <h2>MDE Detection Queries (KQL)</h2>
+
+    <p>
+      The following KQL queries are designed for <strong>Microsoft Defender for Endpoint (MDE)</strong> Advanced Hunting. They can be deployed as custom detection rules in the Microsoft Defender XDR portal at <code>security.microsoft.com</code>.
+    </p>
+
+    <!-- Detection 1 -->
+    <div class="detection-section">
+      <h3>Detection 1 — Registry Modification to Disable .NET ETW</h3>
+      <p>Detects adversaries setting <code>COMPlus_ETWEnabled</code> to <code>0</code> via registry, as seen in LockBit Black and various post-exploitation frameworks.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Custom Detection Rule — Registry</span>
+      </div>
+      <pre><code><span class="cm">// Detect COMPlus_ETWEnabled being set to 0 to disable .NET ETW providers</span>
+<span class="fn">DeviceRegistryEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> ActionType <span class="op">in</span> (<span class="str">"RegistryValueSet"</span>, <span class="str">"RegistryKeyCreated"</span>)
+<span class="op">|</span> <span class="kw">where</span> RegistryKey <span class="kw">has_any</span> (
+    <span class="str">@"Environment"</span>,
+    <span class="str">@"Session Manager\Environment"</span>
+  )
+<span class="op">|</span> <span class="kw">where</span> RegistryValueName <span class="op">=~</span> <span class="str">"COMPlus_ETWEnabled"</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryValueData <span class="op">==</span> <span class="str">"0"</span>
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName, DeviceId,
+    InitiatingProcessAccountName,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine,
+    RegistryKey, RegistryValueName, RegistryValueData
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 2 -->
+    <div class="detection-section">
+      <h3>Detection 2 — PowerShell Set-EtwTraceProvider Abuse</h3>
+      <p>Detects use of the <code>Set-EtwTraceProvider</code> cmdlet to disable providers, or direct <code>logman</code> commands to stop ETW sessions.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Custom Detection Rule — Process</span>
+      </div>
+      <pre><code><span class="cm">// Detect ETW provider manipulation via PowerShell or logman</span>
+<span class="fn">DeviceProcessEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> (
+    <span class="cm">// PowerShell cmdlet abuse</span>
+    (ProcessCommandLine <span class="kw">has</span> <span class="str">"Set-EtwTraceProvider"</span>)
+    <span class="kw">or</span>
+    <span class="cm">// Logman stopping ETW sessions</span>
+    (FileName <span class="op">=~</span> <span class="str">"logman.exe"</span> <span class="kw">and</span> ProcessCommandLine <span class="kw">has_any</span> (<span class="str">"stop"</span>, <span class="str">"delete"</span>, <span class="str">"update"</span>)
+      <span class="kw">and</span> ProcessCommandLine <span class="kw">has_any</span> (<span class="str">"ETW"</span>, <span class="str">"Autologger"</span>, <span class="str">"EventLog"</span>))
+    <span class="kw">or</span>
+    <span class="cm">// WPR / xperf stopping trace sessions</span>
+    (FileName <span class="kw">in~</span> (<span class="str">"wpr.exe"</span>, <span class="str">"xperf.exe"</span>) <span class="kw">and</span> ProcessCommandLine <span class="kw">has</span> <span class="str">"-stop"</span>)
+  )
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName, DeviceId,
+    InitiatingProcessAccountName,
+    InitiatingProcessFileName,
+    FileName, ProcessCommandLine
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 3 -->
+    <div class="detection-section">
+      <h3>Detection 3 — Autologger Registry Tampering</h3>
+      <p>Monitors for modifications to ETW Autologger sessions that could disable security-critical providers at boot time.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Custom Detection Rule — Registry</span>
+      </div>
+      <pre><code><span class="cm">// Detect Autologger registry modifications (disabling ETW sessions)</span>
+<span class="fn">DeviceRegistryEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> ActionType <span class="op">==</span> <span class="str">"RegistryValueSet"</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryKey <span class="kw">has</span> <span class="str">@"Control\WMI\Autologger"</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryValueName <span class="kw">in~</span> (<span class="str">"Start"</span>, <span class="str">"Enabled"</span>, <span class="str">"EnableLevel"</span>, <span class="str">"EnableProperty"</span>, <span class="str">"Status"</span>)
+<span class="op">|</span> <span class="kw">where</span> RegistryValueData <span class="op">==</span> <span class="str">"0"</span>
+<span class="cm">// Filter out common legitimate processes if needed</span>
+<span class="op">|</span> <span class="kw">where</span> InitiatingProcessFileName <span class="op">!in~</span> (<span class="str">"svchost.exe"</span>, <span class="str">"services.exe"</span>, <span class="str">"TiWorker.exe"</span>)
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName, DeviceId,
+    InitiatingProcessAccountName,
+    InitiatingProcessFileName,
+    InitiatingProcessCommandLine,
+    RegistryKey, RegistryValueName, RegistryValueData
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 4 -->
+    <div class="detection-section">
+      <h3>Detection 4 — Security Event Log Redirection</h3>
+      <p>Detects modifications to the Security event log file path, which takes effect immediately without a reboot.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Custom Detection Rule — Registry</span>
+      </div>
+      <pre><code><span class="cm">// Detect Security Event Log file path redirection</span>
+<span class="fn">DeviceRegistryEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> ActionType <span class="op">==</span> <span class="str">"RegistryValueSet"</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryKey <span class="kw">has</span> <span class="str">@"Services\EventLog\Security"</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryValueName <span class="op">=~</span> <span class="str">"File"</span>
+<span class="cm">// Alert if changed from default path</span>
+<span class="op">|</span> <span class="kw">where</span> RegistryValueData <span class="op">!</span><span class="kw">has</span> <span class="str">@"%SystemRoot%\System32\winevt\Logs\Security.evtx"</span>
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName, DeviceId,
+    InitiatingProcessAccountName,
+    InitiatingProcessFileName,
+    RegistryKey, RegistryValueName, RegistryValueData
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 5 -->
+    <div class="detection-section">
+      <h3>Detection 5 — Defender ETW Provider Disabling (LockBit Black Pattern)</h3>
+      <p>Detects the specific LockBit Black technique of disabling the Windows Defender ETW provider GUID via PowerShell.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Custom Detection Rule — Process</span>
+      </div>
+      <pre><code><span class="cm">// Detect Defender ETW Provider disabling (LockBit Black pattern)</span>
+<span class="fn">DeviceProcessEvents</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">7d</span>)
+<span class="op">|</span> <span class="kw">where</span> ProcessCommandLine <span class="kw">has_all</span> (<span class="str">"Set-MpPreference"</span>, <span class="str">"DisableRealtimeMonitoring"</span>)
+    <span class="kw">or</span> ProcessCommandLine <span class="kw">has_all</span> (<span class="str">"Set-EtwTraceProvider"</span>, <span class="str">"{11cd958a-c507-4ef3-b3f2-5fd9dfbd2c78}"</span>)
+    <span class="kw">or</span> (ProcessCommandLine <span class="kw">has</span> <span class="str">"auditpol"</span> <span class="kw">and</span> ProcessCommandLine <span class="kw">has</span> <span class="str">"/disable"</span>)
+<span class="op">|</span> <span class="kw">project</span> Timestamp, DeviceName, DeviceId,
+    InitiatingProcessAccountName,
+    InitiatingProcessFileName,
+    FileName, ProcessCommandLine
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 6 -->
+    <div class="detection-section">
+      <h3>Detection 6 — Suspicious Silent Endpoints (Sensor Telemetry Gap)</h3>
+      <p>Detects devices that are network-active but have stopped reporting EDR telemetry — a potential sign that ETW has been successfully tampered with at a system level.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Hunting Query — Sensor Health</span>
+      </div>
+      <pre><code><span class="cm">// Find devices that are network-active but not reporting process events</span>
+<span class="kw">let</span> timeAgo <span class="op">=</span> <span class="num">1d</span>;
+<span class="kw">let</span> silenceThreshold <span class="op">=</span> <span class="num">8h</span>;
+<span class="kw">let</span> activeDevices <span class="op">=</span>
+    <span class="fn">DeviceNetworkEvents</span>
+    <span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(timeAgo)
+    <span class="op">|</span> <span class="kw">where</span> ActionType <span class="kw">in</span> (<span class="str">"ConnectionSuccess"</span>, <span class="str">"InboundConnectionAccepted"</span>)
+    <span class="op">|</span> <span class="kw">summarize</span> LastNetworkActivity <span class="op">=</span> <span class="fn">max</span>(Timestamp) <span class="kw">by</span> DeviceId, DeviceName;
+<span class="kw">let</span> reportingDevices <span class="op">=</span>
+    <span class="fn">DeviceProcessEvents</span>
+    <span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(silenceThreshold)
+    <span class="op">|</span> <span class="kw">summarize</span> <span class="kw">by</span> DeviceId;
+activeDevices
+<span class="op">|</span> <span class="kw">where</span> DeviceId <span class="op">!in</span> (reportingDevices)
+<span class="op">|</span> <span class="kw">where</span> LastNetworkActivity <span class="op">></span> <span class="fn">ago</span>(silenceThreshold)
+<span class="op">|</span> <span class="kw">project</span> DeviceName, DeviceId, LastNetworkActivity
+<span class="op">|</span> <span class="kw">sort by</span> LastNetworkActivity <span class="kw">desc</span></code></pre>
+    </div>
+
+    <!-- Detection 7 -->
+    <div class="detection-section">
+      <h3>Detection 7 — MDE Built-in Tamper Protection Alerts</h3>
+      <p>Leverages existing MDE tamper protection signals to surface ETW-related tampering alerts.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <span class="code-lang">KQL</span>
+        <span class="code-label">Hunting Query — Alerts</span>
+      </div>
+      <pre><code><span class="cm">// Surface MDE built-in tamper protection alerts related to ETW</span>
+<span class="fn">AlertInfo</span>
+<span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">30d</span>)
+<span class="op">|</span> <span class="kw">where</span> Title <span class="kw">has_any</span> (
+    <span class="str">"Tamper Protection bypass"</span>,
+    <span class="str">"Attempt to bypass Microsoft Defender"</span>,
+    <span class="str">"Attempt to stop Microsoft Defender for Endpoint sensor"</span>,
+    <span class="str">"Attempt to tamper with Microsoft Defender"</span>,
+    <span class="str">"Attempt to turn off Microsoft Defender Antivirus"</span>,
+    <span class="str">"ETW"</span>,
+    <span class="str">"event tracing"</span>
+  )
+<span class="op">|</span> <span class="kw">join kind=leftouter</span> (<span class="fn">AlertEvidence</span> <span class="op">|</span> <span class="kw">where</span> Timestamp <span class="op">></span> <span class="fn">ago</span>(<span class="num">30d</span>)) <span class="kw">on</span> AlertId
+<span class="op">|</span> <span class="kw">project</span> Timestamp, AlertId, Title, Severity,
+    DeviceName, FileName, ProcessCommandLine
+<span class="op">|</span> <span class="kw">sort by</span> Timestamp <span class="kw">desc</span></code></pre>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 6: DEPLOYMENT -->
+  <section>
+    <span class="section-number">06 — Deployment Guide</span>
+    <h2>Creating Custom Detection Rules in MDE</h2>
+
+    <p>To deploy any of the above queries as automated detection rules in Microsoft Defender XDR:</p>
+
+    <div class="attack-flow">
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot" style="background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green-dim);"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4 style="color: var(--accent-green);">1. Open Advanced Hunting</h4>
+          <p>Navigate to <code>security.microsoft.com</code> → Hunting → Advanced Hunting. Paste the query and test it against your data.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot" style="background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green-dim);"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4 style="color: var(--accent-green);">2. Create Detection Rule</h4>
+          <p>Click <strong>"Create detection rule"</strong> in the top-right. Provide a name, frequency (every 1h recommended for registry rules), and MITRE mapping: <code>T1562.006</code>.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot" style="background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green-dim);"></div><div class="flow-line"></div></div>
+        <div class="flow-content">
+          <h4 style="color: var(--accent-green);">3. Configure Alert Details</h4>
+          <p>Set severity to <strong>High</strong>, category to <strong>Defense Evasion</strong>. Map alert entities: DeviceId, FileName, ProcessCommandLine for automated correlation.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-indicator"><div class="flow-dot" style="background: var(--accent-green); box-shadow: 0 0 12px var(--accent-green-dim);"></div></div>
+        <div class="flow-content">
+          <h4 style="color: var(--accent-green);">4. Set Response Actions</h4>
+          <p>Optionally configure automated response: isolate device, collect investigation package, or restrict app execution. Enable and monitor for false positives over a tuning period.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-warning">
+      <span class="alert-icon">⚡</span>
+      <div>
+        <strong>Tuning note:</strong> The Autologger detection (Detection 3) may produce false positives from Windows Update and servicing operations. Exclude <code>TiWorker.exe</code>, <code>svchost.exe</code> (with appropriate parent), and <code>msiexec.exe</code> during the tuning phase. Monitor for 1–2 weeks before setting to high-confidence.
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 7: MITIGATIONS -->
+  <section>
+    <span class="section-number">07 — Mitigations</span>
+    <h2>Hardening Recommendations</h2>
+
+    <div class="technique-grid">
+      <div class="technique-card" data-number="1">
+        <h4>Enable Tamper Protection</h4>
+        <p>MDE's Tamper Protection prevents processes from modifying Defender settings and sensor components. Enable it tenant-wide via the Defender XDR portal under Settings → Endpoints → Advanced Features.</p>
+      </div>
+      <div class="technique-card" data-number="2">
+        <h4>Enforce Protected Process Light (PPL)</h4>
+        <p>Running the MDE sensor as a Protected Process prevents user-mode code from injecting into it or modifying its memory, blocking remote ETW patching against the sensor process.</p>
+      </div>
+      <div class="technique-card" data-number="3">
+        <h4>Monitor ntdll.dll Integrity</h4>
+        <p>Use code integrity policies and kernel callbacks to detect when memory protections of critical system DLLs (especially <code>ntdll.dll</code>) are modified from <code>PAGE_EXECUTE_READ</code> to <code>PAGE_EXECUTE_READWRITE</code>.</p>
+      </div>
+      <div class="technique-card" data-number="4">
+        <h4>Restrict PowerShell and Admin Tools</h4>
+        <p>Use AppLocker or WDAC to restrict <code>Set-EtwTraceProvider</code>, <code>logman.exe</code>, <code>wpr.exe</code>, and <code>xperf.exe</code> to authorized administrators. Deploy in constrained language mode where possible.</p>
+      </div>
+      <div class="technique-card" data-number="5">
+        <h4>Registry Auditing</h4>
+        <p>Enable advanced auditing (SACLs) on ETW-critical registry keys under <code>HKLM\SYSTEM\CurrentControlSet\Control\WMI\Autologger</code> and <code>Services\EventLog</code>. Forward these events to your SIEM.</p>
+      </div>
+      <div class="technique-card" data-number="6">
+        <h4>Multi-Source Correlation</h4>
+        <p>Don't rely solely on ETW for detection. Combine kernel callbacks, minifilter drivers, network telemetry, and AMSI scanning to create layered detection that cannot be defeated by a single evasion technique.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- SECTION 8: REFERENCES -->
+  <section>
+    <span class="section-number">08 — References</span>
+    <h2>Sources &amp; Further Reading</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>MITRE ATT&CK T1562.006</td>
+            <td>Official sub-technique definition for Indicator Blocking</td>
+          </tr>
+          <tr>
+            <td>Atomic Red Team T1562.006</td>
+            <td>Atomic tests including LockBit Black ETW provider disabling and COMPlus_ETWEnabled registry tests</td>
+          </tr>
+          <tr>
+            <td>Adam Chester (XPN) — MDSEC</td>
+            <td>Original research on patching EtwEventWrite for .NET CLR evasion</td>
+          </tr>
+          <tr>
+            <td>White Knight Labs</td>
+            <td>Analysis of EtwEventWrite, EtwEventWriteFull, and NtTraceEvent patching with OPSEC considerations</td>
+          </tr>
+          <tr>
+            <td>Jonathan Johnson — Medium</td>
+            <td>ETW Threat Intelligence Provider telemetry for detecting VirtualProtect on ntdll functions</td>
+          </tr>
+          <tr>
+            <td>Binarly</td>
+            <td>Design analysis of modern EDR weaknesses related to ETW-based solutions</td>
+          </tr>
+          <tr>
+            <td>FluxSec</td>
+            <td>Full-spectrum ETW detection including kernel-mode countermeasures and Remcos RAT analysis</td>
+          </tr>
+          <tr>
+            <td>Microsoft Learn</td>
+            <td>Official Tamper Protection, MDE sensor health, and Advanced Hunting documentation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-success">
+      <span class="alert-icon">✓</span>
+      <div>
+        <strong>Recommended action:</strong> Deploy Detections 1–5 as custom detection rules with High severity. Use Detection 6 as a scheduled hunting query (daily). Enable Tamper Protection tenant-wide and validate with Atomic Red Team T1562.006 tests.
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <footer>
+    <p>ETW Defense Evasion Report &nbsp;·&nbsp; T1562.006 &nbsp;·&nbsp; TLP:CLEAR &nbsp;·&nbsp; February 2026</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
